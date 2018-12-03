@@ -1,0 +1,82 @@
+---
+title: "101c Project, Using Trees"
+author: "Yoshimi Kina"
+date: "12/3/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Tree Attempt 
+```{r}
+afford <- read.csv("~/School/Stats_101c/101cProject/HTrainLast.csv")
+afford.test <- read.csv("~/School/Stats_101c/101cProject/HTestLastNoY.csv")
+```
+
+
+## training/ testing 
+```{r}
+set.seed(4)
+dim(afford)
+train.ind=sample(seq_len(nrow(afford)),size=2450,rep=FALSE)
+a.train<-afford[train.ind,]
+a.test= afford[-train.ind,]
+#a.train['affordability'] <- ifelse(a.train$affordabilitty == "Affordable", 0,1)
+#a.test["affordability"] <- ifelse(a.test$affordabilitty == "Affordable", 0,1)
+a.test<- a.test[,-c(4,7,27,58,73:75)]
+a.train <- a.train[,-c(4,7,27,58,73:75)]
+```
+
+## tree
+```{r}
+require(tree)
+tree1=tree(affordabilitty~.,data=a.train)
+summary(tree1)  
+plot(tree1)
+text(tree1)
+```
+
+```{r}
+a.test$affordabilitty = factor(a.test$affordabilitty)
+preds=predict(tree1,newdata=a.test, type="class")
+preds.prob=predict(tree1,newdata=a.test,type="vector")
+head(preds.prob)
+conf.matrx=table(preds, a.test$affordabilitty)
+conf.matrx
+sum(preds != a.test$affordabilitty)/length(preds)
+misclass=(conf.matrx[2,1]+conf.matrx[1,2])/sum(conf.matrx)
+misclass
+```
+
+#With Pruning
+```{r}
+cv.train=cv.tree(tree1,FUN=prune.misclass)
+names(cv.train)
+plot(cv.train$dev~cv.train$size)
+pruned.fit=prune.misclass(tree1,best=11)
+
+plot(pruned.fit)
+text(pruned.fit,pretty=TRUE)
+summary(pruned.fit)
+```
+
+```{r}
+preds1 =predict(pruned.fit,newdata=a.test, type="class")
+preds.prob1 = predict(pruned.fit,newdata=a.test,type="vector")
+head(preds.prob1)
+conf.matrx1=table(preds1, a.test$affordabilitty)
+conf.matrx1
+sum(preds1 != a.test$affordabilitty)/length(preds1)
+misclass1=(conf.matrx1[2,1]+conf.matrx1[1,2])/sum(conf.matrx1)
+misclass1
+```
+
+```{r}
+preds2 =predict(tree1,newdata=afford.test, type="class")
+preds.prob2 = predict(tree1,newdata=afford.test,type="vector")
+head(preds.prob2)
+write.csv(preds2, file = "firsttestattempt.csv")
+```
+
