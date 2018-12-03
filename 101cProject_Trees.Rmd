@@ -1,6 +1,6 @@
 ---
 title: "101c Project, Using Trees"
-author: "Yoshimi Kina"
+author: "Yoshimi Kina and Kristee Song"
 date: "12/3/2018"
 output: html_document
 ---
