@@ -5,18 +5,12 @@ date: "12/3/2018"
 output: html_document
 ---
 
-#Import Data
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
-affordability.training <- read.csv("HTrainLast.csv")
-affordability.testing <- read.csv("HTestLastNoY.csv")
-```
-
-
-#Cleaning Data
+#Cleaning Training Data
 ####1) See the amount of NAs in a given column (variable) that practically makes the variable data collection obsolete.
 ```{r}
+#import the file
+affordability.training <- read.csv("HTrainLast.csv")
+
 #vector of #NAs per column
 na.per.column <- rep(NA,ncol(affordability.training))
 for (i in 1:ncol(affordability.training)){
@@ -24,16 +18,17 @@ for (i in 1:ncol(affordability.training)){
 }
 na.per.column
 ```
-####2) The total nrow(affordability.testing) is 3500 obs. We choose an arbitrary limit for the number of NAs we will accept per column. If a given variable has more than 1700 NAs, then we will throw out that variable due to insufficient data.
+####2) The total nrow(affordability.testing) is 3500 obs. We choose an arbitrary limit for the number of NAs we will accept per column. If a given variable has more than 1700 NAs (half), then we will throw out that variable due to insufficient data.
 ```{r}
-#Taken out variables Alley, FireplaceQu, PoolQC, Fence, MiscFeature, MiscVal bc of NAs
-affordability.training <- affordability.training[,-c(which(na.per.column>1700))]
-summary(affordability.training)
+#Take out variables Alley, FireplaceQu, PoolQC, Fence, MiscFeature, MiscVal which have more than 1700 NAs
+na.var.init <- c(which(na.per.column>1700))
+affordability.training <- affordability.training[,-na.var.init]
 ```
 ####3) We view the data and contextually look at which variables can be condensed, combined, or deleted.
 Looking at the summaries, there are many things to take note of:
 1) Changing variables: A numeric Variable can have a mean of 0 but a max value being very high. This indicates that the variable is most likely to be categorical given this firm boundary. Also the total number of bathrooms can be a new variable.
 ```{r}
+#alter variables to useful form
 #LotShape == regular YN?
 affordability.training$RegLot <- ifelse((affordability.training$LotShape=="Reg"),1,0)
 #Remodel == YN?
@@ -51,41 +46,63 @@ affordability.training$Porch <- ifelse(affordability.training$X3SsnPorch>0,1,0)
 #Pool == YN?
 affordability.training$Pool <- ifelse(affordability.training$PoolArea>0,1,0)
 
-# Neighborhood
-# Neighborhood <- ifelse((affordability.training$Neighborhood[]))
 t(colnames(affordability.training))
 ```
 3) Some variables add no contribution to the data, so we delete all the rest of these variables.
 ```{r}
-affordability.training <- affordability.training[,c(1,2,3,5,78,15,16,17,18,19,79,23,80,27,29,38,40,41,43,81,45,46,77,76,51,52,56,60,64,65,82,83,74)]
-str(affordability.training)
-#vector of #NAs per column
-na.per.column <- rep(NA,ncol(affordability.training))
-for (i in 1:ncol(affordability.training)){
-  na.per.column[i] <- sum(is.na(affordability.training[,i]))
-}
-t(na.per.column)
-summary(affordability.training)
-t(colnames(affordability.training))
+#include only the variables we need
+affordability.training <- affordability.training[,c(1,2,5,78,15,16,17,18,19,79,80,27,29,38,40,41,43,81,45,46,77,51,52,56,60,64,65,82,83,76)]
 
 #get rid of observations with NA
 affordability.training <- affordability.training[-which(is.na(affordability.training$MasVnr)),]
-affordability.training <- affordability.training[-which(is.na(affordability.training$MSZoning)),]
 affordability.training <- affordability.training[-which(is.na(affordability.training$bath)),]
 affordability.training <- affordability.training[-which(is.na(affordability.training$GarageCars)),]
+
+#check clean data!
 summary(affordability.training)
+```
+
+#Cleaning Testing Data
+*We clean this just as we have done in our training data set.
+```{r}
+#import file
+affordability.testing <- read.csv("HTestLastNoY.csv")
+
+#create a dummy variable just for the time while we clean
+affordability.testing$affordabilitty <- rep(0,1500)
+
+#take away the same problematic variables that were found in testing data
+affordability.testing <- affordability.testing[,-na.var.init]
+
+#add some of the better data variables
+#LotShape == regular YN?
+affordability.testing$RegLot <- ifelse((affordability.testing$LotShape=="Reg"),1,0)
+#Remodel == YN?
+affordability.testing$remodel <- ifelse((affordability.testing$YearRemodAdd - affordability.testing$YearBuilt) == 0,0,1)
+#MasVnr == YN?
+affordability.testing$MasVnr <- ifelse(affordability.testing$MasVnrArea==0,0,1)
+#Second floor == YN?
+affordability.testing$X2ndFlr <- ifelse(affordability.testing$X2ndFlrSF==0,0,1)
+#Total Bathrooms?
+affordability.testing$bath <- affordability.testing$BsmtFullBath + .5*affordability.testing$BsmtHalfBath + affordability.testing$FullBath + .5*affordability.testing$HalfBath
+#Fireplaces == YN?
+affordability.testing$Fireplaces <- ifelse(affordability.testing$Fireplaces>0,1,0)
+#Porch == YN?
+affordability.testing$Porch <- ifelse(affordability.testing$X3SsnPorch>0,1,0)
+#Pool == YN?
+affordability.testing$Pool <- ifelse(affordability.testing$PoolArea>0,1,0)
+
+#only take the variables we need
+affordability.testing <- affordability.testing[,c(1,2,5,78,15,16,17,18,19,79,80,27,29,38,40,41,43,81,45,46,77,51,52,56,60,64,65,82,83)]
+
+#fix observations with NA
+affordability.testing[c(which(is.na(affordability.testing$MasVnr=="NA"))),10] <- 0 #if MasVnr NA, we assume they don't have one aka 0
+affordability.testing[c(which(is.na(affordability.testing$TotalBsmtSF==mean(affordability.testing$TotalBsmtSF)))),14] <- 0 #replace NA with mean
+affordability.testing[c(which(is.na(affordability.testing$bath==mean(affordability.testing$bath)))),18] <- 0 #replace NA with mean
+affordability.testing[c(which(is.na(affordability.testing$GarageCars==mean(affordability.testing$GarageCars)))),25] <- 0 #replace NA with mean
+
+#check clean data!
+summary(affordability.testing)
 ```
 
 #Cross Validation: Separate Training data set into training and testing again.
-```{r}
-#LOOCV
-# require(boot)
-# loocv=cv.glm(affordability.training,glm(affordabilitty~.,data=affordability.training))
-summary(affordability.training)
-str(affordability.training)
-glm(affordabilitty~., family=binomial(), data = affordability.training)
-(prediction <- round(predict(glm(affordabilitty~., family=binomial(), data = affordability.training),newdata = affordability.testing[,-24], type= "response")))
-#compare to the actual data
-table(prediction,affordability.training)
-```
-
